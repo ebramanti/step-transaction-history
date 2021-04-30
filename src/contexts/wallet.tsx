@@ -16,10 +16,17 @@ import { useConnectionConfig } from "./connection";
 import { useLocalStorageState } from "./../utils/utils";
 import { LedgerWalletAdapter } from "../wallet-adapters/ledger";
 import { SolongWalletAdapter } from "../wallet-adapters/solong";
+import { PublicKeyWalletAdapter } from "../wallet-adapters/publicKey";
 
 const ASSETS_URL =
   "https://raw.githubusercontent.com/solana-labs/oyster/main/assets/wallets/";
 export const WALLET_PROVIDERS = [
+  {
+    name: "Mock Wallet",
+    url: "https://www.edward.test", // necessary to set WalletProvider properly
+    icon: `${ASSETS_URL}sollet.svg`,
+    adapter: PublicKeyWalletAdapter,
+  },
   {
     name: "Sollet",
     url: "https://www.sollet.io",
