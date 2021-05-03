@@ -182,6 +182,7 @@ export function WalletProvider({ children = null as any }) {
 
           return (
             <Button
+              key={provider.name}
               size="large"
               type={providerUrl === provider.url ? "primary" : "ghost"}
               onClick={onClick}
