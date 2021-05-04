@@ -11,7 +11,11 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ConnectButton } from "../../components/ConnectButton";
 import { TokenIcon } from "../../components/TokenIcon";
-import { cache, getMultipleAccounts, TokenAccountParser } from "../../contexts/accounts";
+import {
+  cache,
+  getMultipleAccounts,
+  TokenAccountParser,
+} from "../../contexts/accounts";
 import { useConnection, useConnectionConfig } from "../../contexts/connection";
 import { useMarkets } from "../../contexts/market";
 import { useWallet } from "../../contexts/wallet";
@@ -175,7 +179,24 @@ export const HomeView = () => {
           );
         });
         console.log(serumTransaction);
-        console.log(getSerumData(serumTransaction!))
+        const serumData = getSerumData(serumTransaction!);
+        console.log(serumData);
+
+        // Example implementation of how to load token data from source addresses in swap
+        getMultipleAccounts(
+          connection,
+          [serumData.fromSource, serumData.toSource],
+          "confirmed"
+        ).then((accounts) => {
+          accounts.keys.forEach((key, index) => {
+            const account = accounts.array[index];
+            if (!account) {
+              return;
+            }
+
+            cache.add(new PublicKey(key), account, TokenAccountParser);
+          });
+        });
       });
 
       // TODO: Remove, using this to manually test before argument
