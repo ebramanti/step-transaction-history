@@ -1,6 +1,8 @@
 import {
   Connection,
   ParsedConfirmedTransaction,
+  ParsedInnerInstruction,
+  ParsedInstruction,
   PublicKey,
   TransactionSignature,
 } from "@solana/web3.js";
@@ -9,6 +11,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ConnectButton } from "../../components/ConnectButton";
 import { TokenIcon } from "../../components/TokenIcon";
+import { cache, getMultipleAccounts, TokenAccountParser } from "../../contexts/accounts";
 import { useConnection, useConnectionConfig } from "../../contexts/connection";
 import { useMarkets } from "../../contexts/market";
 import { useWallet } from "../../contexts/wallet";
@@ -73,6 +76,62 @@ const getFilteredTransactions = async (
   return filteredTransactions.slice(0, limit);
 };
 
+export type Platform = "Serum" | "Orca";
+export type TransactionType = "swap";
+
+export type Transaction = {
+  signature: TransactionSignature;
+  platform: Platform;
+  type: TransactionType;
+  date?: Date;
+};
+
+export type Swap = Transaction & {
+  fromSource: string;
+  fromAmount: string;
+  toSource: string;
+  toAmount: string;
+};
+
+export interface ParsedSerumInstruction extends ParsedInstruction {
+  parsed: {
+    info: {
+      amount: string;
+      authority: string;
+      destination: string;
+      source: string;
+    };
+    type: string;
+  };
+}
+
+export interface SerumInnerInstructionData extends ParsedInnerInstruction {
+  instructions: ParsedSerumInstruction[];
+}
+
+const getSerumData = (transaction: ParsedConfirmedTransaction): Swap => {
+  const innerInstructionsData = transaction.meta?.innerInstructions?.[0];
+  if (innerInstructionsData) {
+    const {
+      instructions: innerInstructions,
+    } = innerInstructionsData as SerumInnerInstructionData;
+    const [
+      { parsed: sendInstructionData },
+      { parsed: receiveInstructionData },
+    ] = innerInstructions.filter((i) => i.parsed.type === "transfer");
+    return {
+      signature: transaction.transaction.signatures[0],
+      platform: "Serum",
+      type: "swap",
+      fromSource: sendInstructionData.info.source,
+      fromAmount: sendInstructionData.info.amount,
+      toSource: receiveInstructionData.info.source,
+      toAmount: receiveInstructionData.info.amount,
+    };
+  }
+  throw new Error("Missing instruction data for Serum swap");
+};
+
 export const HomeView = () => {
   const { wallet } = useWallet();
   const publicKey = wallet?.publicKey;
@@ -110,6 +169,13 @@ export const HomeView = () => {
       }).then((filteredTransactions) => {
         setTransactions(filteredTransactions);
         console.log(filteredTransactions);
+        const serumTransaction = filteredTransactions.find((data) => {
+          return data.transaction.message.instructions.some(
+            (i) => i.programId.toBase58() === SERUM_SWAP_PROGRAM_ID
+          );
+        });
+        console.log(serumTransaction);
+        console.log(getSerumData(serumTransaction!))
       });
 
       // TODO: Remove, using this to manually test before argument
