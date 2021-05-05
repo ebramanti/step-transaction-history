@@ -13,7 +13,8 @@
     "downlevelIteration": true,
     "resolveJsonModule": true,
     "noEmit": true,
-    "typeRoots": ["./types"],
+    "typeRoots": ["node_modules/@types", "./types"],
+    "types": ["jest"],
     "jsx": "react",
     "isolatedModules": true
   },
