@@ -97,20 +97,22 @@ export type Swap = Transaction & {
   toAmount: string;
 };
 
-export interface ParsedSerumInstruction extends ParsedInstruction {
-  parsed: {
-    info: {
-      amount: string;
-      authority: string;
-      destination: string;
-      source: string;
-    };
-    type: string;
+export type ParsedInstructionInfo = {
+  info: {
+    amount: string;
+    authority: string;
+    destination: string;
+    source: string;
   };
+  type: string;
+};
+
+export interface ParsedInstructionWithInfo extends ParsedInstruction {
+  parsed: ParsedInstructionInfo;
 }
 
 export interface SerumInnerInstructionData extends ParsedInnerInstruction {
-  instructions: ParsedSerumInstruction[];
+  instructions: ParsedInstructionWithInfo[];
 }
 
 const getSerumData = (transaction: ParsedConfirmedTransaction): Swap => {
@@ -134,6 +136,31 @@ const getSerumData = (transaction: ParsedConfirmedTransaction): Swap => {
     };
   }
   throw new Error("Missing instruction data for Serum swap");
+};
+
+const getOrcaData = (transaction: ParsedConfirmedTransaction): Swap => {
+  const innerInstructions = transaction.meta?.innerInstructions ?? [];
+  const transferInstructions = innerInstructions
+    .flatMap((i) => i.instructions as ParsedInstructionWithInfo[])
+    .filter((i) => i.parsed.type === "transfer");
+  const firstTransferInstruction = transferInstructions[0];
+  const lastTransferInstruction =
+    transferInstructions[transferInstructions.length - 1];
+
+  if (firstTransferInstruction) {
+    const { parsed: sendInstructionData } = firstTransferInstruction;
+    const { parsed: receiveInstructionData } = lastTransferInstruction;
+    return {
+      signature: transaction.transaction.signatures[0],
+      platform: "Orca",
+      type: "swap",
+      fromSource: sendInstructionData.info.source,
+      fromAmount: sendInstructionData.info.amount,
+      toSource: receiveInstructionData.info.source,
+      toAmount: receiveInstructionData.info.amount,
+    };
+  }
+  throw new Error("Missing instruction data for Orca swap");
 };
 
 export const HomeView = () => {
@@ -178,23 +205,33 @@ export const HomeView = () => {
             (i) => i.programId.toBase58() === SERUM_SWAP_PROGRAM_ID
           );
         });
+        const orcaTransaction = filteredTransactions.find((data) => {
+          return data.transaction.message.instructions.some(
+            (i) => i.programId.toBase58() === ORCA_SWAP_PROGRAM_ID
+          );
+        });
         console.log(serumTransaction);
         const serumData = getSerumData(serumTransaction!);
         console.log(serumData);
+        const orcaData = getOrcaData(orcaTransaction!);
+        console.log(orcaData);
 
         // Example implementation of how to load token data from source addresses in swap
         getMultipleAccounts(
           connection,
-          [serumData.fromSource, serumData.toSource],
+          [
+            serumData.fromSource,
+            serumData.toSource,
+            orcaData.fromSource,
+            orcaData.toSource,
+          ],
           "confirmed"
         ).then((accounts) => {
           accounts.keys.forEach((key, index) => {
             const account = accounts.array[index];
-            if (!account) {
-              return;
+            if (account) {
+              cache.add(new PublicKey(key), account, TokenAccountParser);
             }
-
-            cache.add(new PublicKey(key), account, TokenAccountParser);
           });
         });
       });
