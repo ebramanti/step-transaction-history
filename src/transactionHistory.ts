@@ -62,6 +62,10 @@ export const getFilteredTransactions = async (
       },
       "confirmed"
     );
+    if (confirmedSignatures.length === 0) {
+      break;
+    }
+
     const rawSignatures = confirmedSignatures.map(({ signature }) => signature);
     const confirmedTransactions = await connection.getParsedConfirmedTransactions(
       rawSignatures,
