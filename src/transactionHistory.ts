@@ -1,8 +1,20 @@
-import { Connection, ParsedConfirmedTransaction, ParsedInnerInstruction, ParsedInstruction, PublicKey, TransactionSignature } from "@solana/web3.js";
+import {
+  Connection,
+  ParsedConfirmedTransaction,
+  ParsedInnerInstruction,
+  ParsedInstruction,
+  PublicKey,
+  TransactionSignature,
+} from "@solana/web3.js";
 
-export const SERUM_SWAP_PROGRAM_ID = "SwaPpA9LAaLfeLi3a68M4DjnLqgtticKg6CnyNwgAC8";
-export const ORCA_SWAP_PROGRAM_ID = "DjVE6JNiYqPL2QXyCUUh8rNjHrbz9hXHNYt99MQ59qw1";
-export const PROGRAM_ID_SET = new Set([SERUM_SWAP_PROGRAM_ID, ORCA_SWAP_PROGRAM_ID]);
+export const SERUM_SWAP_PROGRAM_ID =
+  "SwaPpA9LAaLfeLi3a68M4DjnLqgtticKg6CnyNwgAC8";
+export const ORCA_SWAP_PROGRAM_ID =
+  "DjVE6JNiYqPL2QXyCUUh8rNjHrbz9hXHNYt99MQ59qw1";
+export const PROGRAM_ID_SET = new Set([
+  SERUM_SWAP_PROGRAM_ID,
+  ORCA_SWAP_PROGRAM_ID,
+]);
 
 type TransactionFilterOptions = {
   before?: TransactionSignature;
@@ -77,6 +89,11 @@ export const getFilteredTransactions = async (
           return false;
         }
 
+        // Filter errored transactions for now
+        if (data.meta?.err) {
+          return false;
+        }
+
         if (options?.programIds) {
           return data.transaction.message.instructions.some((i) =>
             options.programIds!.has(i.programId.toBase58())
@@ -97,7 +114,12 @@ export const getFilteredTransactions = async (
 };
 
 export const getSerumData = (transaction: ParsedConfirmedTransaction): Swap => {
-  const innerInstructionsData = transaction.meta?.innerInstructions?.[0];
+  const innerInstructionsIndex = transaction.transaction.message.instructions.findIndex(
+    (i) => i.programId.toBase58() === SERUM_SWAP_PROGRAM_ID
+  );
+  const innerInstructionsData = transaction.meta?.innerInstructions?.find(
+    (i) => i.index === innerInstructionsIndex
+  );
   if (innerInstructionsData) {
     const {
       instructions: innerInstructions,
