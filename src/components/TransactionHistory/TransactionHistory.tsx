@@ -63,14 +63,14 @@ const getSwaps = async (
       platform: data.platform,
       type: data.type,
       fromAmount: data.fromAmount,
-      fromSource: data.fromSource,
-      toSource: data.toSource,
+      fromDestination: data.fromDestination,
+      toDestination: data.toDestination,
       toAmount: data.toAmount,
     };
   });
 
   const sourceSet = new Set(
-    swaps.flatMap((swap) => [swap.fromSource, swap.toSource])
+    swaps.flatMap((swap) => [swap.fromDestination, swap.toDestination])
   );
 
   const accounts = await getMultipleAccounts(
@@ -155,20 +155,21 @@ export const TransactionHistory: FC = () => {
       title: "Asset",
       key: "asset",
       render: (value: Swap) => {
-        const { toSource, fromSource } = value;
-        const fromSourceMintAddress: PublicKey | undefined = cache.get(
-          fromSource
+        const { toDestination, fromDestination } = value;
+        const fromDestinationMintAddress: PublicKey | undefined = cache.get(
+          fromDestination
         )?.info?.mint;
-        const toSourceMintAddress: PublicKey | undefined = cache.get(toSource)
-          ?.info?.mint;
-        if (fromSourceMintAddress && toSourceMintAddress) {
-          const fromToken = tokenMap.get(fromSourceMintAddress.toBase58());
-          const toToken = tokenMap.get(toSourceMintAddress.toBase58());
+        const toDestinationMintAddress: PublicKey | undefined = cache.get(
+          toDestination
+        )?.info?.mint;
+        if (fromDestinationMintAddress && toDestinationMintAddress) {
+          const fromToken = tokenMap.get(fromDestinationMintAddress.toBase58());
+          const toToken = tokenMap.get(toDestinationMintAddress.toBase58());
           return (
             <div style={{ display: "inline-flex", alignItems: "center" }}>
               <PoolIcon
-                mintA={fromSourceMintAddress.toBase58()}
-                mintB={toSourceMintAddress.toBase58()}
+                mintA={fromDestinationMintAddress.toBase58()}
+                mintB={toDestinationMintAddress.toBase58()}
               />
               {fromToken?.symbol} - {toToken?.symbol}
             </div>
@@ -182,15 +183,16 @@ export const TransactionHistory: FC = () => {
       title: "Amount",
       key: "amount",
       render: (value: Swap) => {
-        const { toSource, fromSource, toAmount, fromAmount } = value;
-        const fromSourceMintAddress: PublicKey | undefined = cache.get(
-          fromSource
+        const { toDestination, fromDestination, toAmount, fromAmount } = value;
+        const fromDestinationMintAddress: PublicKey | undefined = cache.get(
+          fromDestination
         )?.info?.mint;
-        const toSourceMintAddress: PublicKey | undefined = cache.get(toSource)
-          ?.info?.mint;
-        if (fromSourceMintAddress && toSourceMintAddress) {
-          const fromToken = tokenMap.get(fromSourceMintAddress.toBase58());
-          const toToken = tokenMap.get(toSourceMintAddress.toBase58());
+        const toDestinationMintAddress: PublicKey | undefined = cache.get(
+          toDestination
+        )?.info?.mint;
+        if (fromDestinationMintAddress && toDestinationMintAddress) {
+          const fromToken = tokenMap.get(fromDestinationMintAddress.toBase58());
+          const toToken = tokenMap.get(toDestinationMintAddress.toBase58());
           if (fromToken && toToken) {
             const fromTokenAmount =
               parseFloat(fromAmount) * 10 ** -fromToken.decimals;

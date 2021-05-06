@@ -33,9 +33,9 @@ export type Transaction = {
 };
 
 export type Swap = Transaction & {
-  fromSource: string;
+  fromDestination: string;
   fromAmount: string;
-  toSource: string;
+  toDestination: string;
   toAmount: string;
 };
 
@@ -147,9 +147,9 @@ export const getSerumData = (transaction: ParsedConfirmedTransaction): Swap => {
       signature: transaction.transaction.signatures[0],
       platform: "Serum",
       type: "swap",
-      fromSource: sendInstructionData.info.source,
+      fromDestination: sendInstructionData.info.destination,
       fromAmount: sendInstructionData.info.amount,
-      toSource: receiveInstructionData.info.source,
+      toDestination: receiveInstructionData.info.destination,
       toAmount: receiveInstructionData.info.amount,
     };
   }
@@ -172,9 +172,9 @@ export const getOrcaData = (transaction: ParsedConfirmedTransaction): Swap => {
       signature: transaction.transaction.signatures[0],
       platform: "Orca",
       type: "swap",
-      fromSource: sendInstructionData.info.source,
+      fromDestination: sendInstructionData.info.destination,
       fromAmount: sendInstructionData.info.amount,
-      toSource: receiveInstructionData.info.source,
+      toDestination: receiveInstructionData.info.destination,
       toAmount: receiveInstructionData.info.amount,
     };
   }
