@@ -32,11 +32,17 @@ export const TransactionHistory: FC = () => {
   const [swaps, setSwaps] = useState<Swap[]>([]);
 
   useEffect(() => {
-    if (publicKey) {
-      getFilteredTransactions(connection, publicKey, {
-        programIds: PROGRAM_ID_SET,
-        limit: TRANSACTION_LIMIT,
-      }).then((filteredTransactions) => {
+    (async () => {
+      if (publicKey) {
+        const filteredTransactions = await getFilteredTransactions(
+          connection,
+          publicKey,
+          {
+            programIds: PROGRAM_ID_SET,
+            limit: TRANSACTION_LIMIT,
+          }
+        );
+
         const swaps = filteredTransactions.map<Swap>((transaction) => {
           let data: Swap | undefined;
           // TODO: Rework getFilteredTransactions to capture transaction data source
@@ -73,31 +79,29 @@ export const TransactionHistory: FC = () => {
           swaps.flatMap((swap) => [swap.fromSource, swap.toSource])
         );
 
-        // Example implementation of how to load token data from source addresses in swap
-        getMultipleAccounts(
+        const accounts = await getMultipleAccounts(
           connection,
           Array.from(sourceSet),
           "confirmed"
-        ).then((accounts) => {
-          accounts.keys.forEach((key, index) => {
-            const account = accounts.array[index];
-            if (account) {
-              cache.add(new PublicKey(key), account, TokenAccountParser);
-            }
-          });
-          setSwaps(swaps);
-          console.log(swaps);
+        );
+        accounts.keys.forEach((key, index) => {
+          const account = accounts.array[index];
+          if (account) {
+            cache.add(new PublicKey(key), account, TokenAccountParser);
+          }
         });
-      });
+        setSwaps(swaps);
+        console.log(swaps);
 
-      // TODO: Remove, using this to manually test before argument
-      // @ts-ignore
-      window.getFilteredTransactions = (before: string) =>
-        getFilteredTransactions(connection, publicKey, {
-          before: before,
-          programIds: PROGRAM_ID_SET,
-        });
-    }
+        // TODO: Remove, using this to manually test before argument
+        // @ts-ignore
+        window.getFilteredTransactions = (before: string) =>
+          getFilteredTransactions(connection, publicKey, {
+            before: before,
+            programIds: PROGRAM_ID_SET,
+          });
+      }
+    })();
   }, [publicKey, connection]);
 
   const columns: ColumnsType<object> = [
