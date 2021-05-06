@@ -220,7 +220,11 @@ export const TransactionHistory: FC = () => {
                 disabled={offset === 0}
                 onClick={onPagePrevious}
               />{" "}
-              <Button icon={<RightOutlined />} onClick={onPageNext} />
+              <Button
+                icon={<RightOutlined />}
+                onClick={onPageNext}
+                disabled={offset === 0 && swaps.length < TRANSACTION_LIMIT}
+              />
             </div>
           );
         }

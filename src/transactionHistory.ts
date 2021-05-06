@@ -57,6 +57,8 @@ export interface SerumInnerInstructionData extends ParsedInnerInstruction {
   instructions: ParsedInstructionWithInfo[];
 }
 
+const INTERNAL_TRANSACTION_QUERY_LIMIT = 50;
+
 export const getFilteredTransactions = async (
   connection: Connection,
   publicKey: PublicKey,
@@ -65,15 +67,28 @@ export const getFilteredTransactions = async (
   let filteredTransactions: ParsedConfirmedTransaction[] = [];
   const limit = options.limit || 20;
   let before = options?.before;
+  let firstConfirmedSignaturesQueryLength = 0;
   while (filteredTransactions.length < limit) {
+    if (
+      firstConfirmedSignaturesQueryLength > 0 &&
+      firstConfirmedSignaturesQueryLength < INTERNAL_TRANSACTION_QUERY_LIMIT
+    ) {
+      break;
+    }
+
     const confirmedSignatures = await connection.getConfirmedSignaturesForAddress2(
       publicKey,
       {
         before: before,
-        limit: 50,
+        limit: INTERNAL_TRANSACTION_QUERY_LIMIT,
       },
       "confirmed"
     );
+
+    if (firstConfirmedSignaturesQueryLength === 0) {
+      firstConfirmedSignaturesQueryLength = confirmedSignatures.length;
+    }
+
     if (confirmedSignatures.length === 0) {
       break;
     }
