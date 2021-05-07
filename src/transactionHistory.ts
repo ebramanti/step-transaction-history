@@ -29,7 +29,7 @@ export type Transaction = {
   signature: TransactionSignature;
   platform: Platform;
   type: TransactionType;
-  date?: Date;
+  date?: Date | null;
 };
 
 export type Swap = Transaction & {
@@ -147,6 +147,9 @@ export const getSerumData = (transaction: ParsedConfirmedTransaction): Swap => {
       signature: transaction.transaction.signatures[0],
       platform: "Serum",
       type: "swap",
+      date: transaction.blockTime
+        ? new Date(transaction.blockTime * 1000)
+        : null,
       fromDestination: sendInstructionData.info.destination,
       fromAmount: sendInstructionData.info.amount,
       toDestination: receiveInstructionData.info.destination,
@@ -172,6 +175,9 @@ export const getOrcaData = (transaction: ParsedConfirmedTransaction): Swap => {
       signature: transaction.transaction.signatures[0],
       platform: "Orca",
       type: "swap",
+      date: transaction.blockTime
+        ? new Date(transaction.blockTime * 1000)
+        : null,
       fromDestination: sendInstructionData.info.destination,
       fromAmount: sendInstructionData.info.amount,
       toDestination: receiveInstructionData.info.destination,

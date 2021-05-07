@@ -23,6 +23,13 @@ import { PoolIcon } from "../TokenIcon";
 
 const TRANSACTION_LIMIT = 20;
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "2-digit",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 const getSwaps = async (
   connection: Connection,
   publicKey: PublicKey,
@@ -58,15 +65,7 @@ const getSwaps = async (
       throw new Error("Unable to parse transaction data");
     }
 
-    return {
-      signature: data.signature,
-      platform: data.platform,
-      type: data.type,
-      fromAmount: data.fromAmount,
-      fromDestination: data.fromDestination,
-      toDestination: data.toDestination,
-      toAmount: data.toAmount,
-    };
+    return data;
   });
 
   const sourceSet = new Set(
@@ -140,7 +139,7 @@ export const TransactionHistory: FC = () => {
     }
   };
 
-  const columns: ColumnsType<object> = [
+  const columns: ColumnsType<Swap> = [
     {
       title: "Platform",
       dataIndex: "platform",
@@ -150,6 +149,27 @@ export const TransactionHistory: FC = () => {
       title: "Type",
       dataIndex: "type",
       key: "type",
+    },
+    {
+      title: "Date",
+      dataIndex: "date",
+      key: "date",
+      render: (_, record) => {
+        let dateString = "Unknown";
+        if (record.date) {
+          dateString = DATE_FORMATTER.format(record.date);
+        }
+
+        return (
+          <a
+            rel="noopener noreferrer"
+            target="_blank"
+            href={`https://www.solanabeach.io/transaction/${record.signature}`}
+          >
+            {dateString}
+          </a>
+        );
+      },
     },
     {
       title: "Asset",
