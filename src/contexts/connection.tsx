@@ -16,6 +16,7 @@ import { cache, getMultipleAccounts, MintParser } from "./accounts";
 import { TokenListProvider, ENV as ChainID, TokenInfo } from "@solana/spl-token-registry";
 
 export type ENV =
+  | "mainnet-beta-step"
   | "mainnet-beta-solana"
   | "mainnet-beta"
   | "testnet"
@@ -23,6 +24,11 @@ export type ENV =
   | "localnet";
 
 export const ENDPOINTS = [
+  {
+    name: "mainnet-beta-step" as ENV,
+    endpoint: "https://step.rpcpool.com/",
+    chainID: ChainID.MainnetBeta,
+  },
   {
     name: "mainnet-beta-solana" as ENV,
     endpoint: "https://api.mainnet-beta.solana.com/",
