@@ -30,11 +30,13 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   minute: "2-digit",
 });
 
+type SwapRow = Swap & { key: string };
+
 const getSwaps = async (
   connection: Connection,
   publicKey: PublicKey,
   before?: TransactionSignature
-): Promise<Swap[]> => {
+): Promise<SwapRow[]> => {
   const filteredTransactions = await getFilteredTransactions(
     connection,
     publicKey,
@@ -45,7 +47,7 @@ const getSwaps = async (
     }
   );
 
-  const swaps = filteredTransactions.map<Swap>((transaction) => {
+  const swaps = filteredTransactions.map<SwapRow>((transaction) => {
     let data: Swap | undefined;
     // TODO: Rework getFilteredTransactions to capture transaction data source
     for (let instruction of transaction.transaction.message.instructions) {
@@ -65,7 +67,7 @@ const getSwaps = async (
       throw new Error("Unable to parse transaction data");
     }
 
-    return data;
+    return { ...data, key: data.signature };
   });
 
   const sourceSet = new Set(
@@ -92,7 +94,7 @@ export const TransactionHistory: FC = () => {
   const connection = useConnection();
   const { tokenMap } = useConnectionConfig();
 
-  const [swaps, setSwaps] = useState<Swap[]>([]);
+  const [swaps, setSwaps] = useState<SwapRow[]>([]);
   const [offset, setOffset] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -139,7 +141,7 @@ export const TransactionHistory: FC = () => {
     }
   };
 
-  const columns: ColumnsType<Swap> = [
+  const columns: ColumnsType<SwapRow> = [
     {
       title: "Platform",
       dataIndex: "platform",
@@ -174,8 +176,8 @@ export const TransactionHistory: FC = () => {
     {
       title: "Asset",
       key: "asset",
-      render: (value: Swap) => {
-        const { toDestination, fromDestination } = value;
+      render: (_, record) => {
+        const { toDestination, fromDestination } = record;
         const fromDestinationMintAddress: PublicKey | undefined = cache.get(
           fromDestination
         )?.info?.mint;
@@ -202,8 +204,8 @@ export const TransactionHistory: FC = () => {
     {
       title: "Amount",
       key: "amount",
-      render: (value: Swap) => {
-        const { toDestination, fromDestination, toAmount, fromAmount } = value;
+      render: (_, record) => {
+        const { toDestination, fromDestination, toAmount, fromAmount } = record;
         const fromDestinationMintAddress: PublicKey | undefined = cache.get(
           fromDestination
         )?.info?.mint;
@@ -218,7 +220,15 @@ export const TransactionHistory: FC = () => {
               parseFloat(fromAmount) * 10 ** -fromToken.decimals;
             const toTokenAmount =
               parseFloat(toAmount) * 10 ** -toToken.decimals;
-            return `-${fromTokenAmount} / +${toTokenAmount}`;
+            return (
+              <>
+                <span
+                  style={{ color: "#80330f" }}
+                >{`-${fromTokenAmount}`}</span>
+                {" / "}
+                <span style={{ color: "#148f6d" }}>{`+${toTokenAmount}`}</span>
+              </>
+            );
           }
         } else {
           return null;
@@ -228,7 +238,7 @@ export const TransactionHistory: FC = () => {
   ];
 
   return (
-    <Table
+    <Table<SwapRow>
       dataSource={swaps.slice(offset, offset + TRANSACTION_LIMIT)}
       columns={columns}
       pagination={false}

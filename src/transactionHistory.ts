@@ -23,7 +23,7 @@ type TransactionFilterOptions = {
 };
 
 export type Platform = "Serum" | "Orca";
-export type TransactionType = "swap";
+export type TransactionType = "Swap";
 
 export type Transaction = {
   signature: TransactionSignature;
@@ -146,7 +146,7 @@ export const getSerumData = (transaction: ParsedConfirmedTransaction): Swap => {
     return {
       signature: transaction.transaction.signatures[0],
       platform: "Serum",
-      type: "swap",
+      type: "Swap",
       date: transaction.blockTime
         ? new Date(transaction.blockTime * 1000)
         : null,
@@ -174,7 +174,7 @@ export const getOrcaData = (transaction: ParsedConfirmedTransaction): Swap => {
     return {
       signature: transaction.transaction.signatures[0],
       platform: "Orca",
-      type: "swap",
+      type: "Swap",
       date: transaction.blockTime
         ? new Date(transaction.blockTime * 1000)
         : null,
