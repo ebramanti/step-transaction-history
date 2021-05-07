@@ -95,11 +95,20 @@ export const getFilteredTransactions = async (
       break;
     }
 
-    const rawSignatures = confirmedSignatures.map(({ signature }) => signature);
-    const confirmedTransactions = await connection.getParsedConfirmedTransactions(
-      rawSignatures,
-      "confirmed"
-    );
+    const minimumLedgerSlot = await connection.getMinimumLedgerSlot()
+    const someConfirmedSignaturesBelowMinimumLedgerSlot = confirmedSignatures.some(({ slot }) => slot < minimumLedgerSlot)
+
+    let confirmedTransactions: (ParsedConfirmedTransaction | null)[]
+    if (someConfirmedSignaturesBelowMinimumLedgerSlot) {
+      confirmedTransactions = await Promise.all(
+        confirmedSignatures.map(({ signature }) => connection.getParsedConfirmedTransaction(signature, "confirmed"))
+      )
+    } else {
+      confirmedTransactions = await connection.getParsedConfirmedTransactions(
+        confirmedSignatures.map(({ signature }) => signature),
+        "confirmed"
+      );
+    }
     const currentFilteredTransactions = confirmedTransactions.filter(
       (data): data is ParsedConfirmedTransaction => {
         if (!data) {
