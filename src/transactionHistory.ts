@@ -120,6 +120,14 @@ export const getFilteredTransactions = async (
         return true;
       }
     );
+
+    if (
+      confirmedSignatures.length < INTERNAL_TRANSACTION_QUERY_LIMIT &&
+      currentFilteredTransactions.length === 0
+    ) {
+      break;
+    }
+
     filteredTransactions = filteredTransactions.concat(
       currentFilteredTransactions
     );
