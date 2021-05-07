@@ -33,8 +33,10 @@ export type Transaction = {
 };
 
 export type Swap = Transaction & {
+  fromSource: string;
   fromDestination: string;
   fromAmount: string;
+  toSource: string;
   toDestination: string;
   toAmount: string;
 };
@@ -150,8 +152,10 @@ export const getSerumData = (transaction: ParsedConfirmedTransaction): Swap => {
       date: transaction.blockTime
         ? new Date(transaction.blockTime * 1000)
         : null,
+      fromSource: sendInstructionData.info.source,
       fromDestination: sendInstructionData.info.destination,
       fromAmount: sendInstructionData.info.amount,
+      toSource: receiveInstructionData.info.source,
       toDestination: receiveInstructionData.info.destination,
       toAmount: receiveInstructionData.info.amount,
     };
@@ -178,8 +182,10 @@ export const getOrcaData = (transaction: ParsedConfirmedTransaction): Swap => {
       date: transaction.blockTime
         ? new Date(transaction.blockTime * 1000)
         : null,
+      fromSource: sendInstructionData.info.source,
       fromDestination: sendInstructionData.info.destination,
       fromAmount: sendInstructionData.info.amount,
+      toSource: receiveInstructionData.info.source,
       toDestination: receiveInstructionData.info.destination,
       toAmount: receiveInstructionData.info.amount,
     };

@@ -32,6 +32,31 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
 
 type SwapRow = Swap & { key: string };
 
+type MintAddresses = {
+  fromMintAddress?: PublicKey;
+  toMintAddress?: PublicKey;
+};
+
+const getAccountFromCache = (pubKey: string): PublicKey | undefined =>
+  cache.get(pubKey)?.info?.mint;
+
+const getMintAddresses = ({
+  fromSource,
+  fromDestination,
+  toSource,
+  toDestination,
+}: Swap): MintAddresses => {
+  const fromSourceMintAddress = getAccountFromCache(fromSource);
+  const fromDestinationMintAddress = getAccountFromCache(fromDestination);
+  const toSourceMintAddress = getAccountFromCache(toSource);
+  const toDestinationMintAddress = getAccountFromCache(toDestination);
+
+  return {
+    fromMintAddress: fromSourceMintAddress ?? fromDestinationMintAddress,
+    toMintAddress: toSourceMintAddress ?? toDestinationMintAddress,
+  };
+};
+
 const getSwaps = async (
   connection: Connection,
   publicKey: PublicKey,
@@ -71,7 +96,12 @@ const getSwaps = async (
   });
 
   const sourceSet = new Set(
-    swaps.flatMap((swap) => [swap.fromDestination, swap.toDestination])
+    swaps.flatMap((swap) => [
+      swap.fromSource,
+      swap.fromDestination,
+      swap.toSource,
+      swap.toDestination,
+    ])
   );
 
   const accounts = await getMultipleAccounts(
@@ -177,21 +207,15 @@ export const TransactionHistory: FC = () => {
       title: "Asset",
       key: "asset",
       render: (_, record) => {
-        const { toDestination, fromDestination } = record;
-        const fromDestinationMintAddress: PublicKey | undefined = cache.get(
-          fromDestination
-        )?.info?.mint;
-        const toDestinationMintAddress: PublicKey | undefined = cache.get(
-          toDestination
-        )?.info?.mint;
-        if (fromDestinationMintAddress && toDestinationMintAddress) {
-          const fromToken = tokenMap.get(fromDestinationMintAddress.toBase58());
-          const toToken = tokenMap.get(toDestinationMintAddress.toBase58());
+        const { fromMintAddress, toMintAddress } = getMintAddresses(record);
+        if (fromMintAddress && toMintAddress) {
+          const fromToken = tokenMap.get(fromMintAddress.toBase58());
+          const toToken = tokenMap.get(toMintAddress.toBase58());
           return (
             <div style={{ display: "inline-flex", alignItems: "center" }}>
               <PoolIcon
-                mintA={fromDestinationMintAddress.toBase58()}
-                mintB={toDestinationMintAddress.toBase58()}
+                mintA={fromMintAddress.toBase58()}
+                mintB={toMintAddress.toBase58()}
               />
               {fromToken?.symbol} - {toToken?.symbol}
             </div>
@@ -205,16 +229,11 @@ export const TransactionHistory: FC = () => {
       title: "Amount",
       key: "amount",
       render: (_, record) => {
-        const { toDestination, fromDestination, toAmount, fromAmount } = record;
-        const fromDestinationMintAddress: PublicKey | undefined = cache.get(
-          fromDestination
-        )?.info?.mint;
-        const toDestinationMintAddress: PublicKey | undefined = cache.get(
-          toDestination
-        )?.info?.mint;
-        if (fromDestinationMintAddress && toDestinationMintAddress) {
-          const fromToken = tokenMap.get(fromDestinationMintAddress.toBase58());
-          const toToken = tokenMap.get(toDestinationMintAddress.toBase58());
+        const { toAmount, fromAmount } = record;
+        const { fromMintAddress, toMintAddress } = getMintAddresses(record);
+        if (fromMintAddress && toMintAddress) {
+          const fromToken = tokenMap.get(fromMintAddress.toBase58());
+          const toToken = tokenMap.get(toMintAddress.toBase58());
           if (fromToken && toToken) {
             const fromTokenAmount =
               parseFloat(fromAmount) * 10 ** -fromToken.decimals;
