@@ -1,4 +1,5 @@
 import {
+  ConfirmedSignatureInfo,
   Connection,
   ParsedConfirmedTransaction,
   ParsedInnerInstruction,
@@ -59,7 +60,9 @@ export interface SerumInnerInstructionData extends ParsedInnerInstruction {
   instructions: ParsedInstructionWithInfo[];
 }
 
-const INTERNAL_TRANSACTION_QUERY_LIMIT = 50;
+const INTERNAL_TRANSACTION_QUERY_LIMIT = 100;
+const INTERNAL_TRANSACTION_PARTITION_SIZE =
+  INTERNAL_TRANSACTION_QUERY_LIMIT / 2;
 
 export const getFilteredTransactions = async (
   connection: Connection,
@@ -70,6 +73,9 @@ export const getFilteredTransactions = async (
   const limit = options.limit || 20;
   let before = options?.before;
   let firstConfirmedSignaturesQueryLength = 0;
+
+  const minimumLedgerSlot = await connection.getMinimumLedgerSlot();
+
   while (filteredTransactions.length < limit) {
     if (
       firstConfirmedSignaturesQueryLength > 0 &&
@@ -95,40 +101,79 @@ export const getFilteredTransactions = async (
       break;
     }
 
-    const minimumLedgerSlot = await connection.getMinimumLedgerSlot()
-    const someConfirmedSignaturesBelowMinimumLedgerSlot = confirmedSignatures.some(({ slot }) => slot < minimumLedgerSlot)
+    let currentFilteredTransactions: ParsedConfirmedTransaction[] = [];
+    for (
+      let i = 0;
+      i < confirmedSignatures.length;
+      i += INTERNAL_TRANSACTION_PARTITION_SIZE
+    ) {
+      const confirmedSignaturesPartition = confirmedSignatures.slice(
+        i,
+        INTERNAL_TRANSACTION_PARTITION_SIZE
+      );
 
-    let confirmedTransactions: (ParsedConfirmedTransaction | null)[]
-    if (someConfirmedSignaturesBelowMinimumLedgerSlot) {
-      confirmedTransactions = await Promise.all(
-        confirmedSignatures.map(({ signature }) => connection.getParsedConfirmedTransaction(signature, "confirmed"))
-      )
-    } else {
-      confirmedTransactions = await connection.getParsedConfirmedTransactions(
-        confirmedSignatures.map(({ signature }) => signature),
-        "confirmed"
+      const aboveMinimumLedgerSlotSignatures: ConfirmedSignatureInfo[] = [];
+      const belowMinimumLedgerSlotSignatures: ConfirmedSignatureInfo[] = [];
+
+      for (let signature of confirmedSignaturesPartition) {
+        if (!signature.err) {
+          // Filter errored transactions for now
+          if (signature.slot < minimumLedgerSlot) {
+            belowMinimumLedgerSlotSignatures.push(signature);
+          } else {
+            aboveMinimumLedgerSlotSignatures.push(signature);
+          }
+        }
+      }
+      const partitionedBelowMinimumLedgerSlotSignatures = Array.from(
+        { length: Math.ceil(belowMinimumLedgerSlotSignatures.length / 10) },
+        (_, i) => belowMinimumLedgerSlotSignatures.slice(i * 10, i * 10 + 10)
+      );
+
+      let confirmedTransactionRequests: Promise<
+        (ParsedConfirmedTransaction | null)[]
+      >[] = [];
+      if (aboveMinimumLedgerSlotSignatures.length > 0) {
+        confirmedTransactionRequests.push(
+          connection.getParsedConfirmedTransactions(
+            aboveMinimumLedgerSlotSignatures.map(({ signature }) => signature),
+            "confirmed"
+          )
+        );
+      }
+
+      if (partitionedBelowMinimumLedgerSlotSignatures.length > 0) {
+        confirmedTransactionRequests = confirmedTransactionRequests.concat(
+          partitionedBelowMinimumLedgerSlotSignatures.map((signatures) =>
+            connection.getParsedConfirmedTransactions(
+              signatures.map(({ signature }) => signature),
+              "confirmed"
+            )
+          )
+        );
+      }
+
+      const confirmedTransactions = (
+        await Promise.all(confirmedTransactionRequests)
+      ).flat();
+      currentFilteredTransactions = currentFilteredTransactions.concat(
+        confirmedTransactions.filter(
+          (data): data is ParsedConfirmedTransaction => {
+            if (!data) {
+              return false;
+            }
+
+            if (options?.programIds) {
+              return data.transaction.message.instructions.some((i) =>
+                options.programIds!.has(i.programId.toBase58())
+              );
+            }
+
+            return true;
+          }
+        )
       );
     }
-    const currentFilteredTransactions = confirmedTransactions.filter(
-      (data): data is ParsedConfirmedTransaction => {
-        if (!data) {
-          return false;
-        }
-
-        // Filter errored transactions for now
-        if (data.meta?.err) {
-          return false;
-        }
-
-        if (options?.programIds) {
-          return data.transaction.message.instructions.some((i) =>
-            options.programIds!.has(i.programId.toBase58())
-          );
-        }
-
-        return true;
-      }
-    );
 
     if (
       confirmedSignatures.length < INTERNAL_TRANSACTION_QUERY_LIMIT &&
