@@ -113,20 +113,20 @@ export const getFilteredTransactions = async (
     );
     let successfulConfirmedSignaturesPartitions = chunkArray(
       successfulConfirmedSignatures,
-        INTERNAL_TRANSACTION_PARTITION_SIZE
-      );
+      INTERNAL_TRANSACTION_PARTITION_SIZE
+    );
     let currentFilteredTransactions: ParsedConfirmedTransaction[] = [];
     for (const confirmedSignaturesPartition of successfulConfirmedSignaturesPartitions) {
       const aboveMinimumLedgerSlotSignatures: ConfirmedSignatureInfo[] = [];
       const belowMinimumLedgerSlotSignatures: ConfirmedSignatureInfo[] = [];
 
       for (const signature of confirmedSignaturesPartition) {
-          if (signature.slot < minimumLedgerSlot) {
-            belowMinimumLedgerSlotSignatures.push(signature);
-          } else {
-            aboveMinimumLedgerSlotSignatures.push(signature);
-          }
+        if (signature.slot < minimumLedgerSlot) {
+          belowMinimumLedgerSlotSignatures.push(signature);
+        } else {
+          aboveMinimumLedgerSlotSignatures.push(signature);
         }
+      }
       const partitionedBelowMinimumLedgerSlotSignatures = chunkArray(
         belowMinimumLedgerSlotSignatures,
         BELOW_MINIMUM_LEDGER_SLOT_PARTITION_SIZE
@@ -194,6 +194,9 @@ export const getFilteredTransactions = async (
   return filteredTransactions.slice(0, limit);
 };
 
+const isSPLTokenTransfer = (instruction: ParsedInstructionWithInfo) =>
+  instruction.program === "spl-token" && instruction.parsed.type === "transfer";
+
 export const getSerumData = (transaction: ParsedConfirmedTransaction): Swap => {
   const innerInstructionsIndex = transaction.transaction.message.instructions.findIndex(
     (i) => i.programId.toBase58() === SERUM_SWAP_PROGRAM_ID
@@ -208,7 +211,7 @@ export const getSerumData = (transaction: ParsedConfirmedTransaction): Swap => {
     const [
       { parsed: sendInstructionData },
       { parsed: receiveInstructionData },
-    ] = innerInstructions.filter((i) => i.parsed.type === "transfer");
+    ] = innerInstructions.filter(isSPLTokenTransfer);
     return {
       signature: transaction.transaction.signatures[0],
       platform: "Serum",
@@ -231,7 +234,7 @@ export const getOrcaData = (transaction: ParsedConfirmedTransaction): Swap => {
   const innerInstructions = transaction.meta?.innerInstructions ?? [];
   const transferInstructions = innerInstructions
     .flatMap((i) => i.instructions as ParsedInstructionWithInfo[])
-    .filter((i) => i.parsed.type === "transfer");
+    .filter(isSPLTokenTransfer);
   const firstTransferInstruction = transferInstructions[0];
   const lastTransferInstruction =
     transferInstructions[transferInstructions.length - 1];
