@@ -146,10 +146,9 @@ export const TransactionHistory: FC = () => {
   const onPageNext = () => {
     const updatedOffset = offset + TRANSACTION_LIMIT;
     const lastElementInPreviousOffset = updatedOffset - 1;
-
+    const currentSwapsSlice = swaps.slice(updatedOffset, updatedOffset + TRANSACTION_LIMIT)
     if (
-      swaps.slice(updatedOffset, updatedOffset + TRANSACTION_LIMIT).length ===
-      TRANSACTION_LIMIT
+      currentSwapsSlice.length > 0 && currentSwapsSlice.length <= TRANSACTION_LIMIT
     ) {
       return setOffset(updatedOffset);
     }
@@ -256,9 +255,11 @@ export const TransactionHistory: FC = () => {
     },
   ];
 
+  const swapSlice = swaps.slice(offset, offset + TRANSACTION_LIMIT)
+
   return (
     <Table<SwapRow>
-      dataSource={swaps.slice(offset, offset + TRANSACTION_LIMIT)}
+      dataSource={swapSlice}
       columns={columns}
       pagination={false}
       loading={loading}
@@ -274,7 +275,7 @@ export const TransactionHistory: FC = () => {
               <Button
                 icon={<RightOutlined />}
                 onClick={onPageNext}
-                disabled={offset === 0 && swaps.length < TRANSACTION_LIMIT}
+                disabled={swapSlice.length < TRANSACTION_LIMIT}
               />
             </div>
           );
