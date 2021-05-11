@@ -60,9 +60,16 @@ export interface SerumInnerInstructionData extends ParsedInnerInstruction {
   instructions: ParsedInstructionWithInfo[];
 }
 
+const chunkArray = <T>(array: Array<T>, n: number) =>
+  Array.from({ length: Math.ceil(array.length / n) }, (_, i) =>
+    array.slice(i * n, i * n + n)
+  );
+
 const INTERNAL_TRANSACTION_QUERY_LIMIT = 100;
 const INTERNAL_TRANSACTION_PARTITION_SIZE =
   INTERNAL_TRANSACTION_QUERY_LIMIT / 2;
+const BELOW_MINIMUM_LEDGER_SLOT_PARTITION_SIZE =
+  INTERNAL_TRANSACTION_PARTITION_SIZE / 5;
 
 export const getFilteredTransactions = async (
   connection: Connection,
@@ -101,33 +108,28 @@ export const getFilteredTransactions = async (
       break;
     }
 
-    let currentFilteredTransactions: ParsedConfirmedTransaction[] = [];
-    for (
-      let i = 0;
-      i < confirmedSignatures.length;
-      i += INTERNAL_TRANSACTION_PARTITION_SIZE
-    ) {
-      const confirmedSignaturesPartition = confirmedSignatures.slice(
-        i,
+    let successfulConfirmedSignatures = confirmedSignatures.filter(
+      ({ err }) => err === null
+    );
+    let successfulConfirmedSignaturesPartitions = chunkArray(
+      successfulConfirmedSignatures,
         INTERNAL_TRANSACTION_PARTITION_SIZE
       );
-
+    let currentFilteredTransactions: ParsedConfirmedTransaction[] = [];
+    for (const confirmedSignaturesPartition of successfulConfirmedSignaturesPartitions) {
       const aboveMinimumLedgerSlotSignatures: ConfirmedSignatureInfo[] = [];
       const belowMinimumLedgerSlotSignatures: ConfirmedSignatureInfo[] = [];
 
-      for (let signature of confirmedSignaturesPartition) {
-        if (!signature.err) {
-          // Filter errored transactions for now
+      for (const signature of confirmedSignaturesPartition) {
           if (signature.slot < minimumLedgerSlot) {
             belowMinimumLedgerSlotSignatures.push(signature);
           } else {
             aboveMinimumLedgerSlotSignatures.push(signature);
           }
         }
-      }
-      const partitionedBelowMinimumLedgerSlotSignatures = Array.from(
-        { length: Math.ceil(belowMinimumLedgerSlotSignatures.length / 10) },
-        (_, i) => belowMinimumLedgerSlotSignatures.slice(i * 10, i * 10 + 10)
+      const partitionedBelowMinimumLedgerSlotSignatures = chunkArray(
+        belowMinimumLedgerSlotSignatures,
+        BELOW_MINIMUM_LEDGER_SLOT_PARTITION_SIZE
       );
 
       let confirmedTransactionRequests: Promise<
