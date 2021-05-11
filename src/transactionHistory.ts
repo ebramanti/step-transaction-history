@@ -175,6 +175,10 @@ export const getFilteredTransactions = async (
           }
         )
       );
+
+      if (currentFilteredTransactions.length >= limit) {
+        break;
+      }
     }
 
     if (
