@@ -160,11 +160,8 @@ export const TransactionHistory: FC = () => {
         publicKey,
         swaps[lastElementInPreviousOffset].signature
       ).then((swaps) => {
-        setSwaps((currentSwaps) => {
-          setOffset(updatedOffset);
-          const updatedSwaps = currentSwaps.concat(swaps);
-          return updatedSwaps;
-        });
+        setOffset(updatedOffset);
+        setSwaps((currentSwaps) => currentSwaps.concat(swaps));
         setLoading(false);
       });
     }
